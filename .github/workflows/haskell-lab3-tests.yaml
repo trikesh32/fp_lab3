@@ -1,4 +1,4 @@
-name: Haskell lab1 tests
+name: Haskell lab3 tests
 
 on: push
 
@@ -7,10 +7,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: haskell/actions/setup@v2
+      - uses: haskell-actions/setup@v2
         with:
-          ghc-version: 9.10.3
+          ghc-version: '9.4.8'
           enable-stack: true
+          stack-version: 'latest'
       - name: install hlint
         run: stack install hlint
       - name: run lint
@@ -21,15 +22,16 @@ jobs:
     needs: [lint]
     steps:
       - uses: actions/checkout@v4
-      - uses: haskell/actions/setup@v2
+      - uses: haskell-actions/setup@v2
         with:
-          ghc-version: 9.10.3
+          ghc-version: '9.4.8'
           enable-stack: true
+          stack-version: 'latest'
       - name: install ormolu
         run: stack install ormolu
       - name: auto format
         run: ormolu -i src/*.hs
-      - name: run formatter cheks
+      - name: run formatter checks
         run: ormolu --mode check src/*.hs
 
 
@@ -38,8 +40,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: haskell/actions/setup@v2
+      - uses: haskell-actions/setup@v2
         with:
-          ghc-version: 9.10.3
+          ghc-version: '9.4.8'
           enable-stack: true
+          stack-version: 'latest'
       - run: stack test
