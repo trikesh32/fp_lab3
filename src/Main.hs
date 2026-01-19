@@ -40,19 +40,10 @@ runProgram opts = processInteractive [] (initialAlgoStates (optAlgorithms opts))
                   hPutStrLn stderr "Входные данные должны быть отсортированы по возрастанию x"
                   exitFailure
                 else do
-                  -- Print input point
                   putStrLn $ "< " ++ show (px point) ++ " " ++ show (py point)
-                  
-                  -- Add point to accumulated
                   let newAccumulated = accumulated ++ [point]
-                  
-                  -- Generate outputs for all algorithms
                   let (newStates, outputs) = advanceAlgorithms step newAccumulated states
-                  
-                  -- Print all outputs
                   mapM_ printOutput outputs
-                  
-                  -- Continue with next point
                   processInteractive newAccumulated newStates
 
     ordered :: [Point] -> Point -> Bool

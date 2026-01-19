@@ -67,8 +67,6 @@ qcTest label prop = TestLabel label $ TestCase $ do
   result <- QC.quickCheckWithResult QC.stdArgs { QC.chatty = False } prop
   unless (QC.isSuccess result) $ assertFailure (QC.output result)
 
--- генератор для линейного интервала и линейной функции
-
 genLineCase :: QC.Gen (Double, Double, Double, Double, Double)
 genLineCase = do
   x1 <- QC.choose (-10.0, 10.0)
