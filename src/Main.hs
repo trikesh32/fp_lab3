@@ -18,55 +18,46 @@ main = do
     Right opts -> runProgram opts
 
 runProgram :: Options -> IO ()
-runProgram opts = do
-  inputPoints <- readAllInput []
-  processStreaming opts inputPoints
+runProgram opts = processInteractive [] (initialAlgoStates (optAlgorithms opts))
   where
-    readAllInput :: [Point] -> IO [Point]
-    readAllInput acc = do
+    step = optStep opts
+
+    processInteractive :: [Point] -> [AlgoState] -> IO ()
+    processInteractive accumulated states = do
       eof <- isEOF
       if eof
-        then return (reverse acc)
+        then return ()
         else do
           line <- getLine
           case parsePoint line of
             Left err -> do
               hPutStrLn stderr err
               exitFailure
-            Right Nothing -> readAllInput acc
-            Right (Just point) ->
-              if not (ordered acc point)
+            Right Nothing -> processInteractive accumulated states
+            Right (Just point) -> do
+              if not (ordered accumulated point)
                 then do
                   hPutStrLn stderr "Входные данные должны быть отсортированы по возрастанию x"
                   exitFailure
-                else readAllInput (point : acc)
+                else do
+                  -- Print input point
+                  putStrLn $ "< " ++ show (px point) ++ " " ++ show (py point)
+                  
+                  -- Add point to accumulated
+                  let newAccumulated = accumulated ++ [point]
+                  
+                  -- Generate outputs for all algorithms
+                  let (newStates, outputs) = advanceAlgorithms step newAccumulated states
+                  
+                  -- Print all outputs
+                  mapM_ printOutput outputs
+                  
+                  -- Continue with next point
+                  processInteractive newAccumulated newStates
 
     ordered :: [Point] -> Point -> Bool
     ordered [] _ = True
-    ordered (p : _) newP = px newP > px p
-
-processStreaming :: Options -> [Point] -> IO ()
-processStreaming opts points = go [] (initialAlgoStates (optAlgorithms opts)) points
-  where
-    step = optStep opts
-
-    go :: [Point] -> [AlgoState] -> [Point] -> IO ()
-    go _ _ [] = return ()
-    go accumulated states (p : rest) = do
-      -- Print input point
-      putStrLn $ "< " ++ show (px p) ++ " " ++ show (py p)
-      
-      -- Add point to accumulated
-      let newAccumulated = accumulated ++ [p]
-      
-      -- Generate outputs for all algorithms
-      let (newStates, outputs) = advanceAlgorithms step newAccumulated states
-      
-      -- Print all outputs
-      mapM_ printOutput outputs
-      
-      -- Continue with next point
-      go newAccumulated newStates rest
+    ordered xs p = px p > px (last xs)
 
     printOutput :: Output -> IO ()
     printOutput (alg, x, y) = putStrLn $ "> " ++ formatLine alg x y
