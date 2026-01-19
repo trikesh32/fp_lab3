@@ -6,7 +6,7 @@ import qualified Test.QuickCheck as QC
 
 import App (simulateSequential)
 import Interpolation
-import Types
+import Types (Point(Point, px, py))
 
 main :: IO ()
 main = runTestTTAndExit tests

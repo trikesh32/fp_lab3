@@ -1,11 +1,11 @@
 module Main (main) where
 
-import App
+import App (Options(..), AlgoState, Output, parseArgs, initialAlgoStates, advanceAlgorithms, formatLine)
 import System.Environment (getArgs)
 import System.Exit (exitFailure)
 import System.IO (hPutStrLn, isEOF, stderr)
 import Text.Read (readMaybe)
-import Types
+import Types (Point(Point, px, py))
 
 main :: IO ()
 main = do
@@ -18,40 +18,58 @@ main = do
     Right opts -> runProgram opts
 
 runProgram :: Options -> IO ()
-runProgram opts = loop [] (initialAlgoStates (optAlgorithms opts))
+runProgram opts = do
+  inputPoints <- readAllInput []
+  processStreaming opts inputPoints
   where
-    step = optStep opts
-
-    loop :: [Point] -> [AlgoState] -> IO ()
-    loop points states = do
+    readAllInput :: [Point] -> IO [Point]
+    readAllInput acc = do
       eof <- isEOF
       if eof
-        then
-          mapM_ (putStrLn . renderLine) (snd (advanceAlgorithms step points states))
+        then return (reverse acc)
         else do
           line <- getLine
           case parsePoint line of
             Left err -> do
               hPutStrLn stderr err
               exitFailure
-            Right Nothing -> loop points states
+            Right Nothing -> readAllInput acc
             Right (Just point) ->
-              if not (ordered points point)
+              if not (ordered acc point)
                 then do
                   hPutStrLn stderr "Входные данные должны быть отсортированы по возрастанию x"
                   exitFailure
-                else do
-                  let newPoints = points ++ [point]
-                      (newStates, outputs) = advanceAlgorithms step newPoints states
-                  mapM_ (putStrLn . renderLine) outputs
-                  loop newPoints newStates
+                else readAllInput (point : acc)
 
     ordered :: [Point] -> Point -> Bool
     ordered [] _ = True
-    ordered xs p = px p > px (last xs)
+    ordered (p : _) newP = px newP > px p
 
-    renderLine :: Output -> String
-    renderLine (alg, x, y) = formatLine alg x y
+processStreaming :: Options -> [Point] -> IO ()
+processStreaming opts points = go [] (initialAlgoStates (optAlgorithms opts)) points
+  where
+    step = optStep opts
+
+    go :: [Point] -> [AlgoState] -> [Point] -> IO ()
+    go _ _ [] = return ()
+    go accumulated states (p : rest) = do
+      -- Print input point
+      putStrLn $ "< " ++ show (px p) ++ " " ++ show (py p)
+      
+      -- Add point to accumulated
+      let newAccumulated = accumulated ++ [p]
+      
+      -- Generate outputs for all algorithms
+      let (newStates, outputs) = advanceAlgorithms step newAccumulated states
+      
+      -- Print all outputs
+      mapM_ printOutput outputs
+      
+      -- Continue with next point
+      go newAccumulated newStates rest
+
+    printOutput :: Output -> IO ()
+    printOutput (alg, x, y) = putStrLn $ "> " ++ formatLine alg x y
 
 parsePoint :: String -> Either String (Maybe Point)
 parsePoint raw =

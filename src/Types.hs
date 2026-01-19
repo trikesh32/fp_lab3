@@ -1,5 +1,5 @@
 module Types
-  ( Point (..),
+  ( Point (Point, px, py),
   )
 where
 

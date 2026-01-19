@@ -1,18 +1,19 @@
 module App
   ( Options (..),
-    AlgoState (..),
+    AlgoState,
     Output,
     parseArgs,
     initialAlgoStates,
     advanceAlgorithms,
-    simulateSequential,
     formatLine,
+    simulateSequential,
   )
 where
 
+import Data.List (unfoldr)
 import Interpolation
 import Text.Read (readMaybe)
-import Types (Point (..))
+import Types (Point (Point, px, py))
 
 data Options = Options
   { optStep :: Double,
@@ -66,11 +67,11 @@ initialAlgoStates :: [Algorithm] -> [AlgoState]
 initialAlgoStates algorithms = [AlgoState alg Nothing | alg <- algorithms]
 
 advanceAlgorithms :: Double -> [Point] -> [AlgoState] -> ([AlgoState], [Output])
-advanceAlgorithms _ _ [] = ([], [])
-advanceAlgorithms step pts (state : rest) =
-  let (state', outputs) = advanceOne step pts state
-      (rest', outputsRest) = advanceAlgorithms step pts rest
-   in (state' : rest', outputs ++ outputsRest)
+advanceAlgorithms step pts states =
+  let results = map (advanceOne step pts) states
+      newStates = map fst results
+      allOutputs = concatMap snd results
+   in (newStates, allOutputs)
 
 advanceOne :: Double -> [Point] -> AlgoState -> (AlgoState, [Output])
 advanceOne _ [] st = (st, [])
@@ -79,16 +80,15 @@ advanceOne step pts@(first : _) (AlgoState kind nextX) =
         Nothing -> px first
         Just x -> x
       lastX = px (last pts)
-      loop current outputs
-        | current > lastX = (AlgoState kind (Just current), outputs)
+      generateNext current
+        | current > lastX = Nothing
         | otherwise =
             case calculate kind pts current of
-              Nothing -> (AlgoState kind (Just current), outputs)
-              Just value ->
-                let nextValue = current + step
-                    newOutputs = outputs ++ [(kind, current, value)]
-                 in loop nextValue newOutputs
-   in loop startX []
+              Nothing -> Nothing
+              Just value -> Just ((kind, current, value), current + step)
+      outputs = unfoldr generateNext startX
+      finalX = if null outputs then startX else (\(_, x, _) -> x) (last outputs) + step
+   in (AlgoState kind (Just finalX), outputs)
 
 calculate :: Algorithm -> [Point] -> Double -> Maybe Double
 calculate AlgLinear = linearValue
@@ -98,11 +98,11 @@ formatLine :: Algorithm -> Double -> Double -> String
 formatLine alg x y = algorithmName alg ++ ": " ++ show x ++ " " ++ show y
 
 simulateSequential :: Double -> [Algorithm] -> [Point] -> [Output]
-simulateSequential step algorithms = go [] (initialAlgoStates algorithms)
-  where
-    go :: [Point] -> [AlgoState] -> [Point] -> [Output]
-    go _ _ [] = []
-    go seen states (p : rest) =
-      let seen' = seen ++ [p]
-          (states', outputs) = advanceAlgorithms step seen' states
-       in outputs ++ go seen' states' rest
+simulateSequential step algorithms points =
+  let initialStates = initialAlgoStates algorithms
+      processPoint (accPoints, states, allOutputs) point =
+        let newAccPoints = accPoints ++ [point]
+            (newStates, outputs) = advanceAlgorithms step newAccPoints states
+         in (newAccPoints, newStates, allOutputs ++ outputs)
+      (_, _, finalOutputs) = foldl processPoint ([], initialStates, []) points
+   in finalOutputs
